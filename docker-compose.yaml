@@ -1,0 +1,57 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15.1-alpine
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+    ports:
+      - "5432:5432"
+    volumes: 
+      - db:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 3s
+      timeout: 1s
+      retries: 10
+  backend:
+    container_name: backend
+    build:
+      context: "."
+      dockerfile: Dockerfile.backend
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - 8081:1323
+    environment:
+      DB_HOST: db
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-2}
+    links:
+      - db
+    networks:
+      - internal
+  frontend:
+    container_name: frontend
+    build:
+      context: "."
+      dockerfile: Dockerfile.frontend
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - 8080:3000
+    environment:
+      API_HOST: backend
+    links:
+      - db
+    networks:
+      - internal
+volumes:
+  db:
+    driver: local
+networks:
+  internal: {}
