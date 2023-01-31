@@ -10,10 +10,28 @@ import (
 	"github.com/ziflex/lecho/v3"
 )
 
+type Database struct {
+	Name          string `json:"name"`
+	EngineVersion string `json:"engine_version"`
+	NodeCount     int    `json:"node_count"`
+}
+
+var databases []*Database
+
 func main() {
 
 	logger := zerolog.New(os.Stdout).With().Timestamp().Caller().Logger()
 	echoLogger := lecho.From(logger)
+
+	addDatabase := func(db *Database) error {
+		databases = append(databases, db)
+		return nil
+	}
+
+	addDatabase(&Database{Name: "dev-1", EngineVersion: "15.1", NodeCount: 2})
+	addDatabase(&Database{Name: "dev-2", EngineVersion: "14.6", NodeCount: 3})
+	addDatabase(&Database{Name: "staging", EngineVersion: "15.1", NodeCount: 5})
+	addDatabase(&Database{Name: "production", EngineVersion: "14.6", NodeCount: 5})
 
 	e := echo.New()
 	e.HideBanner = true
@@ -34,15 +52,24 @@ func main() {
 	})
 
 	e.GET("/databases", func(c echo.Context) error {
-		type db struct {
-			Name    string `json:"name"`
-			Version string `json:"version"`
-			Engine  string `json:"engine"`
+		return c.JSON(http.StatusOK, databases)
+	})
+
+	e.POST("/databases", func(c echo.Context) error {
+		type input struct {
+			Name          string `json:"name"`
+			EngineVersion string `json:"engine_version"`
+			NodeCount     int    `json:"node_count"`
 		}
-		var dbs []db
-		dbs = append(dbs, db{Name: "db1", Version: "1.0", Engine: "mysql"})
-		dbs = append(dbs, db{Name: "db2", Version: "2.0", Engine: "postgres"})
-		return c.JSON(http.StatusOK, dbs)
+		var in input
+		if err := c.Bind(&in); err != nil {
+			return c.JSON(http.StatusBadRequest, err.Error())
+		}
+		return c.JSON(http.StatusOK, &Database{
+			Name:          in.Name,
+			EngineVersion: in.EngineVersion,
+			NodeCount:     in.NodeCount,
+		})
 	})
 
 	logger.Info().Msg("starting server")
