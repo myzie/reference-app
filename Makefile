@@ -1,4 +1,12 @@
 
+.PHONY: start-frontend
+start-frontend:
+	cd frontend && npm start
+
+.PHONY: start-backend
+start-backend:
+	go run ./backend/main.go
+
 .PHONY: build
 build: build-backend build-frontend
 
